@@ -155,13 +155,14 @@ void loop() {
   if (connected) {
     //String newValue = "Time since boot: " + String(millis()/1000);
     String newValue = String("$PLAY,VS6,4,6,,,,,*");
+    // setting long weapon setting as the string to send to brx
     String value = String("$WEAP,0,,100,0,3,18,0,,,,,,,,360,850,14,56,1400,0,7,100,100,,0,,,S07,D20,D19,,D04,D03,D21,D18,,,,,14,28,75,,*");
     Serial.println("Setting new characteristic value to \"" + newValue + "\"");
     
     // Set the characteristic's value to be the array of bytes that is actually a string.
     //pRemoteCharacteristic->writeValue(newValue.c_str(), newValue.length());
     //pRemoteCharacteristic->writeValue((uint8_t*)newValue.c_str(), newValue.length(),true);
-    sendString(value);
+    sendString(value); // sending the setting to brx
   }else if(doScan){
     BLEDevice::getScan()->start(0);  // this is just eample to start scan after disconnect, most likely there is better way to do it in arduino
   }
@@ -169,6 +170,7 @@ void loop() {
   delay(1000); // Delay a second between loops.
 } // End of loop
 
+// procedures to break up long string of bytes into groups of 20 characters to send
 void sendString(String value){
 
   const char * c_string = value.c_str();
