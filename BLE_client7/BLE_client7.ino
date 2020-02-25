@@ -26,6 +26,7 @@ static BLERemoteCharacteristic* pRemoteRXCharacteristic;
 static BLERemoteCharacteristic* pRemoteTXCharacteristic;
 static BLEAdvertisedDevice* myDevice;
 
+// fixed reporting of data recieved from brx
 static void notifyCallback(
   BLERemoteCharacteristic* pBLERemoteCharacteristic,
   uint8_t* pData,
