@@ -3,6 +3,7 @@
  * There is a lot new capabilities implemented.
  * author unknown
  * updated by chegewara
+ * modified by Jay Burden and "friends" to attempt to pair with a brx laser tag gun
  */
 /*
  * pRemoteCharacteristic->writeValue(value, length, true); -> opcode 0x12, request command
@@ -13,9 +14,9 @@ HANDLE <-- data: host sends data to device using the ATT write-request command (
 #include "BLEDevice.h"
 //#include "BLEScan.h"
 
-// The remote service we wish to connect to.
+// The remote service we wish to connect to. this needs to be changed based upon specific tagger... i think.. afraid its a general uuid...
 static BLEUUID serviceUUID("6E400001-B5A3-F393-E0A9-E50E24DCCA9E");
-// The characteristic of the remote service we are interested in.
+// The characteristic of the remote service we are interested in. same as above, change...
 static BLEUUID    charUUID("6E400002-B5A3-F393-E0A9-E50E24DCCA9E");
 
 static boolean doConnect = false;
@@ -153,11 +154,11 @@ void loop() {
   // If we are connected to a peer BLE Server, update the characteristic each time we are reached
   // with the current time since boot.
   if (connected) {
-    String newValue = "$PLAY,VS6,4,6,,,,,*";
+    String newValue = "$PLAY,VS6,4,6,,,,,*"; // this makes the brx say "game over" used as a test
     Serial.println("Setting new characteristic value to \"" + newValue + "\"");
     
     // Set the characteristic's value to be the array of bytes that is actually a string.
-    pRemoteCharacteristic->writeValue(newValue.c_str(), newValue.length(),true);
+    pRemoteCharacteristic->writeValue(newValue.c_str(), newValue.length(),true); // this is the sending function to brx
   }else if(doScan){
     BLEDevice::getScan()->start(0);  // this is just eample to start scan after disconnect, most likely there is better way to do it in arduino
   }
