@@ -11,7 +11,8 @@
   HANDLE <-- data: host sends data to device using the ATT write-request command (opcode 0x12)
 */
 /*
-   $CLEAR,*\r\n
+  data strings that need to be sent to start a callsign game:
+  $CLEAR,*\r\n
   $START,*\r\n
   $GSET,1,0,1,0,1,0,50,1,*\r\n
   $PSET,0,0,45,70,70,50,,H44,JAD,V33,V3I,V3C,V3G,V3E,V37,H06,H55,H13,H21,H02,U15,W71,A10,*\r\n
@@ -210,6 +211,7 @@ void loop() {
     // Set the characteristic's value to be the array of bytes that is actually a string.
     //pRemoteCharacteristic->writeValue(newValue.c_str(), newValue.length());
     //pRemoteCharacteristic->writeValue((uint8_t*)newValue.c_str(), newValue.length(),true);
+     // sending strings of data - partial to test out trying to start a callsign match and listen in to responses from brx
     if (WEAP == false) {
       sendString("$START,*");
       sendString("$GSET,1,0,1,0,1,0,50,1,*");
