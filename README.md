@@ -1,6 +1,6 @@
 # ESP32-BLE-Client-UART-BCLaserTag
 
-BLE esp32 client to connect to server based hardware for lasertag equipment (BRX)
+BLE esp32 client to connect to server based hardware for lasertag equipment
 
 device intended to pair with hardware and send expected data to hardware and recieve and interpret data from hardware
 
