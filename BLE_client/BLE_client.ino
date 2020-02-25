@@ -3,6 +3,7 @@
  * There is a lot new capabilities implemented.
  * author unknown
  * updated by chegewara
+ * updated/modified by jay burden to try to pair to brx hardware
  */
 /*
  * pRemoteCharacteristic->writeValue(value, length, true); -> opcode 0x12, request command
@@ -14,9 +15,9 @@ HANDLE <-- data: host sends data to device using the ATT write-request command (
 //#include "BLEScan.h"
 
 // The remote service we wish to connect to.
-static BLEUUID serviceUUID("6E400001-B5A3-F393-E0A9-E50E24DCCA9E");
+static BLEUUID serviceUUID("6E400001-B5A3-F393-E0A9-E50E24DCCA9E"); // had to change this to the uuid detected for brx
 // The characteristic of the remote service we are interested in.
-static BLEUUID    charUUID("6E400002-B5A3-F393-E0A9-E50E24DCCA9E");
+static BLEUUID    charUUID("6E400002-B5A3-F393-E0A9-E50E24DCCA9E"); // same as above
 
 static boolean doConnect = false;
 static boolean connected = false;
@@ -153,11 +154,11 @@ void loop() {
   // If we are connected to a peer BLE Server, update the characteristic each time we are reached
   // with the current time since boot.
   if (connected) {
-    String newValue = "Time since boot: " + String(millis()/1000);
-    Serial.println("Setting new characteristic value to \"" + newValue + "\"");
+    String newValue = "Time since boot: " + String(millis()/1000); // simply adds 1 every second to the string value
+    Serial.println("Setting new characteristic value to \"" + newValue + "\""); // prints the new value
     
     // Set the characteristic's value to be the array of bytes that is actually a string.
-    pRemoteCharacteristic->writeValue(newValue.c_str(), newValue.length());
+    pRemoteCharacteristic->writeValue(newValue.c_str(), newValue.length()); // sends the new value to the connected device or brx
   }else if(doScan){
     BLEDevice::getScan()->start(0);  // this is just eample to start scan after disconnect, most likely there is better way to do it in arduino
   }
