@@ -1,13 +1,13 @@
 #include "BLEDevice.h"
 //#include "BLEScan.h"
 
-#define BLE_SERVER_SERVICE_NAME "GOYOX"
+#define BLE_SERVER_SERVICE_NAME "jayeburden"
 
 // The remote service we wish to connect to.
-static BLEUUID serviceUUID("00000af0-0000-1000-8000-00805f9b34fb");
+static BLEUUID serviceUUID("6E400001-B5A3-F393-E0A9-E50E24DCCA9E");
 // The characteristic of the remote service we are interested in.
-static BLEUUID    charRXUUID("00000af1-0000-1000-8000-00805f9b34fb");
-static BLEUUID    charTXUUID("00000af7-0000-1000-8000-00805f9b34fb");
+static BLEUUID    charRXUUID("6E400002-B5A3-F393-E0A9-E50E24DCCA9E");
+static BLEUUID    charTXUUID("6E400003-B5A3-F393-E0A9-E50E24DCCA9E");
 
 static boolean doConnect = false;
 static boolean connected = false;
@@ -22,7 +22,11 @@ String tokenStrings[100];
 char *ptr = NULL;
 
 int PlayerKillCount[64] = {0}; // so its players 0-63 as the player id.
-int TeamKillCount[6] = {0};
+int TeamKillCount[6] = {0}; // teams 0-6, Red-0, blue-1, yellow-2, green-3, purple-4, cyan-5
+int MaxTeamKills = 32767;
+int MaxPlayerKills = 32767;
+int PlayerLives = 32767;
+int MaxTeamLives = 32767;
 
 int lastTaggedPlayer = -1;
 int lastTaggedTeam = -1;
@@ -82,17 +86,27 @@ static void notifyCallback(
       space 6 is "is critical" if critical a damage multiplier would apply, rare.
       space 7 is "power", not sure what that does.*/
       //been tagged
-      lastTaggedPlayer = tokenStrings[2].toInt();
-      lastTaggedTeam = tokenStrings[3].toInt();
+      lastTaggedPlayer = tokenStrings[3].toInt();
+      lastTaggedTeam = tokenStrings[4].toInt();
+      Serial.println("Just tagged by: "+String(lastTaggedPlayer)+" on team: "+String(lastTaggedTeam));
       
     }
     if(tokenStrings[0] == "$HP"){
-      //health status
+      //health status update occured
       if((tokenStrings[1] == "0") && (tokenStrings[2] == "0") && (tokenStrings[3] == "0")){
         PlayerKillCount[lastTaggedPlayer]++;
         TeamKillCount[lastTaggedTeam]++;
+        PlayerLives=PlayerLives--;
+        Serial.println("Lives Remaining = "+String(PlayerLives));
+        Serial.println("Killed by: "+String(lastTaggedPlayer)+" on team: "+String(lastTaggedTeam));
         Serial.println("Team: "+String(lastTaggedTeam)+"Score: "+String(TeamKillCount[lastTaggedTeam]));
         Serial.println("Player: "+String(lastTaggedPlayer)+" Score: "+String(PlayerKillCount[lastTaggedPlayer]));
+        if(PlayerLives > 0) {
+        respawnplayer();
+        }
+        else {
+         gameover();
+        }
       }
     }
   } else{
@@ -246,7 +260,7 @@ void loop() {
     if (WEAP == false) {
       sendString("$START,*");
       sendString("$GSET,1,0,1,0,1,0,50,1,*");
-      sendString("$PSET,0,0,45,70,70,50,,H44,JAD,V33,V3I,V3C,V3G,V3E,V37,H06,H55,H13,H21,H02,U15,W71,A10,*");
+      sendString("$PSET,54,5,45,70,70,50,,H44,JAD,V33,V3I,V3C,V3G,V3E,V37,H06,H55,H13,H21,H02,U15,W71,A10,*");
       sendString("$WEAP,0,,100,0,1,9,0,,,,,,,,100,850,36,144,1700,0,9,100,100,250,0,,,R23,D20,D19,,D23,D22,D21,D18,,,,,36,72,75,*");
       sendString("$WEAP,1,2,100,0,0,45,0,,,,,,70,80,900,850,6,24,400,2,7,100,100,,0,,,T01,,,,D01,D28,D27,D18,,,,,6,12,75,30,*");
       sendString("$WEAP,4,1,90,13,1,90,0,,,,,,,,1000,100,1,0,0,10,13,100,100,,0,0,,M92,,,,,,,,,,,,1,0,20,*");
@@ -268,6 +282,7 @@ void loop() {
       sendString("$BMAP,5,98,,,,,*");
       sendString("$BMAP,8,4,,,,,*");
       sendString("$PLAYX,0,*");
+      delay(3000);
       sendString("$PLAY,VA81,4,6,,,,,*");
       sendString("$SPAWN,,*");
 
@@ -279,6 +294,36 @@ void loop() {
 
   delay(1000); // Delay a second between loops.
 } // End of loop
+
+void gameover() {
+  sendString("STOP,*"); // stops everything going on
+  sendString("CLEAR,*"); // clears out anything stored for game settings
+  sendString("$PLAY,VS6,4,6,,,,,*"); // says game over
+}
+
+void respawnplayer() {
+        Serial.println("Respawning Player");
+        //sendString("$WEAP,0,*"); // cleared out weapon 0
+        //sendString("$WEAP,1,*"); // cleared out weapon 1
+        //sendString("$WEAP,4,*"); // cleared out melee weapon
+        sendString("$WEAP,0,,100,0,1,9,0,,,,,,,,100,850,36,144,1700,0,9,100,100,250,0,,,R23,D20,D19,,D23,D22,D21,D18,,,,,36,72,75,*");
+        sendString("$WEAP,1,2,100,0,0,45,0,,,,,,70,80,900,850,6,24,400,2,7,100,100,,0,,,T01,,,,D01,D28,D27,D18,,,,,6,12,75,30,*");
+        sendString("$WEAP,4,1,90,13,1,90,0,,,,,,,,1000,100,1,0,0,10,13,100,100,,0,0,,M92,,,,,,,,,,,,1,0,20,*");
+        sendString("$HLOOP,0,0,*"); // not sure what this does
+        sendString("$GLED,,,,5,,,*"); // changes headset to tagged out color
+        //sendString("$WEAP,0,*"); // cleared out weapon 0
+        //sendString("$WEAP,1,*"); // cleared out weapon 1
+        //sendString("$WEAP,4,*"); // cleared out melee weapon
+       // sendString("$WEAP,0,,100,0,1,9,0,,,,,,,,100,850,36,144,1700,0,9,100,100,250,0,,,R23,D20,D19,,D23,D22,D21,D18,,,,,36,72,75,*");
+       // sendString("$WEAP,1,2,100,0,0,45,0,,,,,,70,80,900,850,6,24,400,2,7,100,100,,0,,,T01,,,,D01,D28,D27,D18,,,,,6,12,75,30,*");
+       // sendString("$WEAP,4,1,90,13,1,90,0,,,,,,,,1000,100,1,0,0,10,13,100,100,,0,0,,M92,,,,,,,,,,,,1,0,20,*");
+        sendString("$PLAYX,0,*");
+        delay(3000);
+        sendString("$PLAY,VA81,4,6,,,,,*");
+        sendString("SPAWN,,*"); // respawns player back in game
+        Serial.println("Player Respawned");
+        
+}
 
 void sendString(String value) {
 
