@@ -1,3 +1,8 @@
+/*
+ * update 3/8/2020 added serial.println notifications for troubleshooting as inital trial on completed sketch was unsuccessfull and need to verify trouble shooting
+ * 
+ */
+
 #include "BLEDevice.h"
 
 
@@ -165,10 +170,10 @@ static void notifyCallback(
       lastTaggedPlayer = tokenStrings[3].toInt();
       lastTaggedTeam = tokenStrings[4].toInt();
       Serial.println("Just tagged by: " + String(lastTaggedPlayer) + " on team: " + String(lastTaggedTeam));
-      if(settingsallowed==1) {
+      if(settingsallowed==1) { // runs the function to set the programing variables via IR recieved from Gun
         roundonesettings();
       }
-      if(settingsallowed==2) {
+      if(settingsallowed==2) {// runs the function to set the programing variables via IR frecieved by gun for step two
         roundtwosettings();
       }
     }
@@ -427,9 +432,11 @@ void exitgetsettings() {
   sendString("STOP,*"); // stops everything going on
   sendString("CLEAR,*"); // clears out anything stored for game settings in gun, not esp
   settingsallowed=4; // sets trigger for next programing step
+  Serial.println("successfully exited get settings gun state");
 }
 // loads all the game configuration settings into the gun
 void gameconfigurator() {
+  Serial.println("Running Game Configurator based upon recieved inputs");
   sendString("$CLEAR,*");
   sendString("$START,*");
   SetFFOutdoor();
@@ -455,16 +462,19 @@ void gameconfigurator() {
   sendString("$BMAP,5,98,,,,,*");
   sendString("$BMAP,8,4,,,,,*");
   settingsallowed=5; // this is the next step... automatic now but maybe IR later
+  Serial.println("Finished Game Configuration set up");
 }
 
 // this starts a game... automatic now but can be triggered by an IR
 void delaystart() {
+  Serial.println("Starting Delayed Game Start");
   sendString("$VOL,50,0,*"); // sets max volume on gun 0-100 feet distance
   sendString("$PLAY,VA84,4,5,,,,,*"); // plays a ten second countdown
   delay(DelayStart); // delays ten seconds
   // sendString("$PLAY,VA81,4,6,,,,,*"); // plays the .. nevermind
   sendString("$SPAWN,,*");
   settingsallowed=6; // finally were done!
+  Serial.println("Delayed Start Complete, should be in game play mode now");
 }
 
 // not called out in program currently just a good use for troubleshooting
@@ -649,10 +659,10 @@ void weaponsettingsB() {
 }
 // sets and sends game settings based upon the stored settings
 void SetFFOutdoor() {
-  if(SetODMode == 1 && SetFF == 1) {sendString("$GSET,1,0,1,0,1,0,50,1,*");}
-  if(SetODMode > 1 && SetFF > 0) {sendString("$GSET,1,1,1,0,1,0,50,1,*");}
-  if(SetODMode > 1 && SetFF == 0) {sendString("$GSET,0,1,1,0,1,0,50,1,*");}
-  if(SetODMode == 1 && SetFF == 0) {sendString("$GSET,0,0,1,0,1,0,50,1,*");}
+  if(SetODMode == 0 && SetFF == 1) {sendString("$GSET,1,0,1,0,1,0,50,1,*");}
+  if(SetODMode == 1 && SetFF == 1) {sendString("$GSET,1,1,1,0,1,0,50,1,*");}
+  if(SetODMode == 1 && SetFF == 0) {sendString("$GSET,0,1,1,0,1,0,50,1,*");}
+  if(SetODMode == 0 && SetFF == 0) {sendString("$GSET,0,0,1,0,1,0,50,1,*");}
 }
 // ends game... thats all
 void gameover() {
