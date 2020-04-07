@@ -18,7 +18,6 @@ static boolean doScan = false;
 static BLERemoteCharacteristic* pRemoteRXCharacteristic;
 static BLERemoteCharacteristic* pRemoteTXCharacteristic;
 static BLEAdvertisedDevice* myDevice;
-BLEClient*  pClient;
 
 char notifyData[100];
 int notifyDataIndex = 0;
@@ -50,6 +49,54 @@ long startScan = 0;
 bool WEAP = false;
 TaskHandle_t TaskBLE, TaskSerial;
 
+
+
+
+class MyClientCallback : public BLEClientCallbacks {
+    void onConnect(BLEClient* pclient) {
+    }
+
+    void onDisconnect(BLEClient* pclient) {
+      connected = false;
+      doConnect = true;
+      doScan = true;
+      WEAP = false;
+      Serial.println("onDisconnect");
+
+    }
+};
+/**
+   Scan for BLE servers and find the first one that advertises the service we are looking for.
+*/
+class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
+    /**
+        Called for each advertising BLE server.
+    */
+    void onResult(BLEAdvertisedDevice advertisedDevice) {
+      Serial.print("BLE Advertised Device found: ");
+      Serial.println(advertisedDevice.toString().c_str());
+
+      // We have found a device, let us now see if it contains the service we are looking for.
+      //if (advertisedDevice.haveServiceUUID() && advertisedDevice.isAdvertisingService(serviceUUID)) {
+      if (advertisedDevice.getName() == BLE_SERVER_SERVICE_NAME) {
+        BLEDevice::getScan()->stop();
+        myDevice = new BLEAdvertisedDevice(advertisedDevice);
+        doConnect = true;
+        doScan = false;
+
+      } // Found our server
+      else {
+        doScan = true;
+      }
+    } // onResult
+}; // MyAdvertisedDeviceCallbacks
+
+struct PARAMS {
+  BLEScan* pBLEScan;
+  BLEClient*  pClient;
+  MyAdvertisedDeviceCallbacks* m_advertisedCallback;
+  MyClientCallback *myClientCallback;
+};
 
 static void notifyCallback(
   BLERemoteCharacteristic* pBLERemoteCharacteristic,
@@ -138,40 +185,29 @@ static void notifyCallback(
     //hold data and keep receving
   }
 }
-
-class MyClientCallback : public BLEClientCallbacks {
-    void onConnect(BLEClient* pclient) {
-    }
-
-    void onDisconnect(BLEClient* pclient) {
-      connected = false;
-      doConnect = true;
-      doScan = true;
-      WEAP = false;
-      Serial.println("onDisconnect");
-
-    }
-};
-
-bool connectToServer() {
+bool connectToServer(PARAMS * taskParam) {
   Serial.print("Forming a connection to ");
   Serial.println(myDevice->getAddress().toString().c_str());
 
 
   Serial.println(" - Created client");
+  taskParam->pClient = BLEDevice::createClient();
+  taskParam->myClientCallback = new MyClientCallback();
+  taskParam->pClient->setClientCallbacks(taskParam->myClientCallback);
 
-
+  
 
   // Connect to the remove BLE Server.
-  if (pClient->connect(myDevice)) { // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
+  if (taskParam->pClient->connect(myDevice)) { // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
     Serial.println(" - Connected to server");
 
     // Obtain a reference to the service we are after in the remote BLE server.
-    BLERemoteService* pRemoteService = pClient->getService(serviceUUID);
+    BLERemoteService* pRemoteService = taskParam->pClient->getService(serviceUUID);
+    Serial.println("Done");
     if (pRemoteService == nullptr) {
       Serial.print("Failed to find our service UUID: ");
       Serial.println(serviceUUID.toString().c_str());
-      pClient->disconnect();
+      taskParam->pClient->disconnect();
       return false;
     }
     Serial.println(" - Found our service");
@@ -181,7 +217,7 @@ bool connectToServer() {
     if (pRemoteRXCharacteristic == nullptr) {
       Serial.print("Failed to find our characteristic UUID: ");
       Serial.println(charRXUUID.toString().c_str());
-      pClient->disconnect();
+      taskParam->pClient->disconnect();
       return false;
     }
     Serial.println(" - Found our RX characteristic");
@@ -191,7 +227,7 @@ bool connectToServer() {
     if (pRemoteTXCharacteristic == nullptr) {
       Serial.print("Failed to find our characteristic UUID: ");
       Serial.println(charTXUUID.toString().c_str());
-      pClient->disconnect();
+      taskParam->pClient->disconnect();
       return false;
     }
     Serial.println(" - Found our TX characteristic");
@@ -217,32 +253,6 @@ bool connectToServer() {
   }
   return false;
 }
-/**
-   Scan for BLE servers and find the first one that advertises the service we are looking for.
-*/
-class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
-    /**
-        Called for each advertising BLE server.
-    */
-    void onResult(BLEAdvertisedDevice advertisedDevice) {
-      Serial.print("BLE Advertised Device found: ");
-      Serial.println(advertisedDevice.toString().c_str());
-
-      // We have found a device, let us now see if it contains the service we are looking for.
-      //if (advertisedDevice.haveServiceUUID() && advertisedDevice.isAdvertisingService(serviceUUID)) {
-      if (advertisedDevice.getName() == BLE_SERVER_SERVICE_NAME) {
-        BLEDevice::getScan()->stop();
-        myDevice = new BLEAdvertisedDevice(advertisedDevice);
-        doConnect = true;
-        doScan = false;
-
-      } // Found our server
-      else {
-        doScan = true;
-      }
-    } // onResult
-}; // MyAdvertisedDeviceCallbacks
-
 
 void gameover() {
   sendString("STOP,*"); // stops everything going on
@@ -309,10 +319,14 @@ void sendString(String value) {
 
 
 void bleLoopTask(void *params) {
+
+  PARAMS *taskParam = (PARAMS*)params;
+
+  
   
   for(;;){
     if (doConnect == true) {
-      if (connectToServer()) {
+      if (connectToServer(taskParam)) {
         Serial.println("We are now connected to the BLE Server.");
         doConnect = false; // to try and make the connection again.
       } else {
@@ -378,7 +392,7 @@ void bleLoopTask(void *params) {
 void serialTask(void * params){
   
   for(;;){
-    String LCDText = String(ammo)+","+String(weap)+","+String(health)+","+String(armor)+","+String(shield)+","+String(lives);
+    String LCDText = "Hello";//String(ammo)+","+String(weap)+","+String(health)+","+String(armor)+","+String(shield)+","+String(lives);
     SerialLCD.println(LCDText);
     delay(2000);
   }
@@ -392,20 +406,22 @@ void setup() {
   SerialLCD.begin(115200,SERIAL_8N1, 16, 17);
   
   BLEDevice::init("");
-
+  
   // Retrieve a Scanner and set the callback we want to use to be informed when we
   // have detected a new device.  Specify that we want active scanning and start the
   // scan to run for 5 seconds.
-  BLEScan* pBLEScan = BLEDevice::getScan();
-  pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
-  pBLEScan->setInterval(1349);
-  pBLEScan->setWindow(449);
-  pBLEScan->setActiveScan(true);
-  pBLEScan->start(10, true);
+  
+  PARAMS taskParam;
+  taskParam.pBLEScan = BLEDevice::getScan();
+  taskParam.m_advertisedCallback = new MyAdvertisedDeviceCallbacks();
+  taskParam.pBLEScan->setAdvertisedDeviceCallbacks(taskParam.m_advertisedCallback);
+  taskParam.pBLEScan->setInterval(1349);
+  taskParam.pBLEScan->setWindow(449);
+  taskParam.pBLEScan->setActiveScan(true);
+  taskParam.pBLEScan->start(10, true);
   BLEDevice::setPower(ESP_PWR_LVL_N14);
 
-  pClient  = BLEDevice::createClient();
-  pClient->setClientCallbacks(new MyClientCallback());
+  
   
   // If the flag "doConnect" is true then we have scanned for and found the desired
   // BLE Server with which we wish to connect.  Now we connect to it.  Once we are
@@ -414,11 +430,11 @@ void setup() {
   xTaskCreatePinnedToCore(
     bleLoopTask,                  /* pvTaskCode */
     "BLELoop",            /* pcName */
-    1000,                   /* usStackDepth */
-    NULL,                   /* pvParameters */
+    3000,                   /* usStackDepth */
+    (void*)&taskParam,                   /* pvParameters */
     1,                      /* uxPriority */
     &TaskBLE,                 /* pxCreatedTask */
-    0);                     /* xCoreID */
+    1);                     /* xCoreID */
 
   xTaskCreatePinnedToCore(
     serialTask,
@@ -427,10 +443,9 @@ void setup() {
     NULL,
     1,
     &TaskSerial,
-    1);
+    0);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-
 }
